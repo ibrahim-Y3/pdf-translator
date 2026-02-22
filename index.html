@@ -34,15 +34,25 @@
         }
 
         #viewer-container {
-            flex: 1; overflow: auto; padding: 20px; display: flex; justify-content: center;
-            background: #000; -webkit-overflow-scrolling: touch;
-        }
+    flex: 1;
+    overflow: auto; 
+    padding: 20px;
+    display: block; 
+    background: #000;
+    -webkit-overflow-scrolling: touch;
+    text-align: center; 
+}
 
         
         .pdf-page-wrapper {
-            position: relative; box-shadow: 0 10px 50px rgba(0,0,0,0.7);
-            background: white; line-height: 0; transform-origin: top center;
-        }
+    position: relative;
+    box-shadow: 0 10px 50px rgba(0,0,0,0.7);
+    background: white;
+    line-height: 0;
+    display: inline-block; 
+    text-align: left; 
+    margin: 0 auto; 
+}
 
         canvas { display: block; z-index: 1; }
 
@@ -156,7 +166,7 @@ async function renderPage(num) {
         viewport: viewport,
         enhanceTextSelection: true 
     }).promise;
-
+    document.getElementById('viewer-container').scrollTo(0, 0);
     isRendering = false;
     document.getElementById('page-info').textContent = `${num} / ${pdfDoc.numPages}`;
 }
@@ -216,4 +226,5 @@ document.getElementById('next').onclick = () => { if (pageNum < pdfDoc.numPages)
 </script>
 
 </body>
+
 </html>
