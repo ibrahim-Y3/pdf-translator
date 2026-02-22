@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PDF-Çevirisi | Profesyonel</title>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
@@ -36,7 +36,7 @@
         #viewer-container {
     flex: 1;
     overflow: auto; 
-    padding: 20px;
+    padding: 10px;
     display: block; 
     background: #000;
     -webkit-overflow-scrolling: touch;
@@ -46,14 +46,13 @@
         
         .pdf-page-wrapper {
     position: relative;
-    box-shadow: 0 10px 50px rgba(0,0,0,0.7);
+    box-shadow: 0 0 30px rgba(0,0,0,0.5);
     background: white;
-    line-height: 0;
     display: inline-block; 
     text-align: left; 
     margin: 0 auto; 
 }
-
+        
         canvas { display: block; z-index: 1; }
 
         .textLayer {
@@ -228,3 +227,4 @@ document.getElementById('next').onclick = () => { if (pageNum < pdfDoc.numPages)
 </body>
 
 </html>
+
