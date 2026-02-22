@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PDF-Çevirisi | Profesyonel</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf_viewer.min.css">
+    
+    <style>
+        :root { --bg: #0a0a0b; --panel: #161618; --accent: #3b82f6; --text: #f4f4f5; --border: #2d2d30; }
+        
+        body { 
+            margin: 0; padding: 0; background: var(--bg); color: var(--text);
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            display: flex; height: 100vh; overflow: hidden;
+        }
+
+        
+        #sidebar {
+            width: 250px; background: var(--panel); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; padding: 20px; z-index: 100;
+            transition: all 0.3s ease;
+        }
+
+        
+        #viewport-wrapper { flex: 1; display: flex; flex-direction: column; position: relative; }
+
+        #toolbar {
+            height: 60px; background: rgba(22, 22, 24, 0.95); backdrop-filter: blur(10px);
+            display: flex; align-items: center; justify-content: center; 
+            gap: 15px; border-bottom: 1px solid var(--border); z-index: 50;
+        }
+
+        #viewer-container {
+            flex: 1; overflow: auto; padding: 20px; display: flex; justify-content: center;
+            background: #000; -webkit-overflow-scrolling: touch;
+        }
+
+        
+        .pdf-page-wrapper {
+            position: relative; box-shadow: 0 10px 50px rgba(0,0,0,0.7);
+            background: white; line-height: 0; transform-origin: top center;
+        }
+
+        canvas { display: block; z-index: 1; }
+
+        .textLayer {
+            position: absolute; left: 0; top: 0; right: 0; bottom: 0;
+            mix-blend-mode: multiply; z-index: 2; --scale-factor: 2.0;
+        }
+
+        
+        #translation-card {
+            position: fixed; background: white; color: #111;
+            padding: 20px; border-radius: 12px; display: none;
+            z-index: 10000; width: 300px; box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            font-size: 15px; border: 1px solid #ddd;
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+       
+        .btn { 
+            background: var(--accent); color: white; border: none; 
+            padding: 12px; border-radius: 8px; cursor: pointer; 
+            font-weight: 600; text-align: center;
+        }
+        .nav-btn { background: #2d2d30; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; }
+        .nav-btn:active { background: var(--accent); }
+
+        
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            #sidebar { 
+                width: 100%; height: auto; padding: 15px; 
+                border-right: none; border-bottom: 1px solid var(--border); 
+            }
+            #sidebar h3, #sidebar p { display: none; }
+            #viewport-wrapper { height: calc(100vh - 80px); }
+            
+            #translation-card {
+                width: 100% !important; left: 0 !important; bottom: 0 !important; 
+                top: auto !important; border-radius: 20px 20px 0 0;
+                transform: translateY(0); padding-bottom: 40px;
+            }
+        }
+        
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+<aside id="sidebar">
+    <h3 style="color: var(--accent); margin-top: 0;">LinguistPDF</h3>
+    <p style="font-size: 12px; color: #a1a1aa; margin-bottom: 15px;">Akıllı Metin Çevirmen</p>
+    <label class="btn">
+        PDF Dosyası Seç
+        <input type="file" id="upload" accept=".pdf">
+    </label>
+</aside>
+
+<div id="viewport-wrapper">
+    <div id="toolbar">
+        <button id="prev" class="nav-btn">←</button>
+        <span id="page-info" style="font-family: monospace; font-size: 14px; font-weight: bold;">0 / 0</span>
+        <button id="next" class="nav-btn">→</button>
+    </div>
+
+    <div id="viewer-container">
+        <div id="wrapper" class="pdf-page-wrapper">
+            <canvas id="canvas"></canvas>
+            <div id="text-layer" class="textLayer"></div>
+        </div>
+    </div>
+</div>
+
+<div id="translation-card">
+    <div style="width: 40px; height: 4px; background: #e2e8f0; border-radius: 2px; margin: -10px auto 15px; display: none;" id="mobile-handle"></div>
+    <div id="orig" style="font-weight: bold; font-size: 11px; color: #3b82f6; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;"></div>
+    <div id="trans" style="line-height: 1.6; color: #1f2937;">Metin seçildiğinde çeviri burada görünecek.</div>
+</div>
+
+<script>
+const pdfjsLib = window['pdfjs-dist/build/pdf'];
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+
+let pdfDoc = null, pageNum = 1, isRendering = false;
+const SCALE = 2.0; 
+
+async function renderPage(num) {
+    if (isRendering || !pdfDoc) return;
+    isRendering = true;
+
+    const page = await pdfDoc.getPage(num);
+    const viewport = page.getViewport({ scale: SCALE });
+
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const textLayer = document.getElementById('text-layer');
+    const wrapper = document.getElementById('wrapper');
+
+    canvas.height = viewport.height;
+    canvas.width = viewport.width;
+    wrapper.style.width = viewport.width + "px";
+    wrapper.style.height = viewport.height + "px";
+
+    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+
+    textLayer.innerHTML = "";
+    const textContent = await page.getTextContent();
+    
+    await pdfjsLib.renderTextLayer({
+        textContent: textContent,
+        container: textLayer,
+        viewport: viewport,
+        enhanceTextSelection: true 
+    }).promise;
+
+    isRendering = false;
+    document.getElementById('page-info').textContent = `${num} / ${pdfDoc.numPages}`;
+}
+
+document.getElementById('upload').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const arrayBuffer = await file.arrayBuffer();
+    pdfDoc = await pdfjsLib.getDocument({ data: arrayBuffer, disableFontFace: false }).promise;
+    pageNum = 1;
+    renderPage(1);
+});
+
+
+let selectionTimeout;
+document.addEventListener('selectionchange', () => {
+    const sel = window.getSelection();
+    const text = sel.toString().trim();
+    const card = document.getElementById('translation-card');
+
+    if (text.length > 1) {
+        clearTimeout(selectionTimeout);
+        selectionTimeout = setTimeout(async () => {
+            card.style.display = 'block';
+            
+            
+            if (window.innerWidth > 768) {
+                const range = sel.getRangeAt(0).getBoundingClientRect();
+                card.style.left = Math.min(range.left, window.innerWidth - 320) + 'px';
+                card.style.top = (range.bottom + 15) + 'px';
+            }
+
+            document.getElementById('orig').textContent = text.substring(0, 40) + (text.length > 40 ? "..." : "");
+            document.getElementById('trans').innerHTML = "<span style='color: #6b7280'>Çevriliyor...</span>";
+
+            try {
+                const r = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=autodetect|tr`);
+                const d = await r.json();
+                document.getElementById('trans').textContent = d.responseData.translatedText;
+            } catch {
+                document.getElementById('trans').textContent = "API limitine takılmış olabilir.";
+            }
+        }, 600); 
+    }
+});
+
+
+document.addEventListener('mousedown', (e) => {
+    const card = document.getElementById('translation-card');
+    if (!card.contains(e.target) && window.getSelection().toString().length === 0) {
+        card.style.display = 'none';
+    }
+});
+
+document.getElementById('prev').onclick = () => { if (pageNum > 1) renderPage(--pageNum); };
+document.getElementById('next').onclick = () => { if (pageNum < pdfDoc.numPages) renderPage(++pageNum); };
+</script>
+
+</body>
+</html>
