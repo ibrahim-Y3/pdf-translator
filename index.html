@@ -110,11 +110,18 @@
 </aside>
 
 <div id="viewport-wrapper">
-    <div id="toolbar">
-        <button id="prev" class="nav-btn">←</button>
-        <span id="page-info" style="font-family: monospace; font-size: 14px; font-weight: bold;">0 / 0</span>
-        <button id="next" class="nav-btn">→</button>
+   <div id="toolbar">
+    <button id="prev" class="nav-btn">←</button>
+    
+    <div id="page-control" style="display: flex; align-items: center; gap: 8px;">
+        <input type="number" id="page-input" value="1" min="1" 
+               style="width: 45px; background: #2d2d30; color: white; border: 1px solid #444; 
+                      border-radius: 4px; text-align: center; padding: 6px; font-family: monospace; font-weight: bold;">
+        <span style="font-family: monospace; font-size: 14px; opacity: 0.8;">/ <span id="page-total">0</span></span>
     </div>
+    
+    <button id="next" class="nav-btn">→</button>
+</div>
 
     <div id="viewer-container">
         <div id="wrapper" class="pdf-page-wrapper">
@@ -167,7 +174,8 @@ async function renderPage(num) {
     }).promise;
     document.getElementById('viewer-container').scrollTo(0, 0);
     isRendering = false;
-    document.getElementById('page-info').textContent = `${num} / ${pdfDoc.numPages}`;
+    document.getElementById('page-input').value = num;
+    document.getElementById('page-total').textContent = pdfDoc.numPages;;
 }
 
 document.getElementById('upload').addEventListener('change', async (e) => {
@@ -222,9 +230,27 @@ document.addEventListener('mousedown', (e) => {
 
 document.getElementById('prev').onclick = () => { if (pageNum > 1) renderPage(--pageNum); };
 document.getElementById('next').onclick = () => { if (pageNum < pdfDoc.numPages) renderPage(++pageNum); };
+    const pageInput = document.getElementById('page-input');
+
+pageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        let desiredPage = parseInt(pageInput.value);
+        
+        
+        if (!isNaN(desiredPage) && desiredPage >= 1 && desiredPage <= pdfDoc.numPages) {
+            pageNum = desiredPage;
+            renderPage(pageNum);
+            pageInput.blur(); 
+        } else {
+            
+            pageInput.value = pageNum;
+        }
+    }
+});
 </script>
 
 </body>
 
 </html>
+
 
